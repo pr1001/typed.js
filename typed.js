@@ -204,6 +204,39 @@ T = {
     this.assertIsType(type);
     return (this.typeOf(obj).isSupertypeOf(type));
   },
+  'typedFunction': function typedFunction(input, output, f) {
+    // take an object, convert to an array for internal use
+    var inputArr = [];
+    for (var i in input) {
+      this.assertIsType(input[i]);
+      inputArr.push({'parameter': i, 'type': input[i]});
+    }
+    
+    return function() {
+      // get the function's arguments
+      var argsArr = Array.prototype.slice.call(arguments);
+      if (argsArr.length < inputArr.length) {
+        throw new Error("Missing one or more function parameters.");
+      }
+      
+      // get that each argument is the expected type
+      for (var k = 0; k < argsArr.length; k++) {
+        if (!T.is(argsArr[k], inputArr[k].type)) {
+          throw new Error("Parameter " + inputArr[k].parameter + " is not " + inputArr[k].type + ".");
+        }
+      }
+      
+      // call the function with the arguments
+      var result = f.apply(f, argsArr);
+      
+      // check that the return tpye is the expected type
+      if (!T.is(result, output)) {
+        throw new Error("Return value of " + T.typeOf(result) + " is not " + output + ".");
+      }
+      // return the result
+      return result;
+    }
+  },
   'assertIsType': function(type) {
     if (!(type instanceof this.Type)) {
       throw new Error(type + " is not a Type");

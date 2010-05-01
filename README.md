@@ -43,23 +43,46 @@ You can define your own types:
     AType.children // -> []
     AType.parents // -> [T.ObjectType]*
 
-\* While multiple parents is technically possible in this system, many internal methods currently assume only one parent.
+\* While having multiple parents is technically possible in this system, many internal methods currently assume only one parent.
+
+You can also define strongly-typed functions where both the input and output must match declared types. For example:
+
+    var hello = T.typedFunction(
+      {name: T.StringType, age: T.NumberType},
+      T.StringType,
+      function(name, age) {
+        return "Hi, " + name + ", you are " + age + ".";
+      }
+    );
+    hello("John Doe", 35) // -> "Hello, John Doe, you are 35."
+    hello("John Doe", "35") // Error: Parameter age is not type Number.
+    hello("John Doe") // Error: Missing one or more function parameters.
+    
+    var hello2 = T.typedFunction(
+      {name: T.StringType, age:T.NumberType},
+      T.StringType,
+      function(name, age) { return age; }
+    );
+    hello2("John Doe", 35) // -> Error: Return value of type Number is not type String.
 
 Many assertion methods are available. In all of them nothing is done if they pass, while an appropriate exception is thrown if not:
 
     T.assertObjectIsType("test", T.StringType) // no errors
-    T.assertObjectIsSupertype("test", T.ObjectType) // -> Error "test is not a parent type of type Object."
-    T.typeIsSupertype(T.StringType, T.ObjectType) // -> Error "type String is not a parent type of type Object."
+    T.assertObjectIsSupertype("test", T.ObjectType) // Error "test is not a parent type of type Object."
+    T.typeIsSupertype(T.StringType, T.ObjectType) // Error "type String is not a parent type of type Object."
     T.typeIsSupertype(T.ObjectType, T.StringType) // no errors
 
 # To Do
 
-- Type Conversions: Internal conversions are desirable between primitives and their corresponding classes, which typed uses. For example, from primitive `true` to `new Boolean(true)` and vice versa. User-defined implicit (ie automatic) conversions may also be desirable.
+- Type Conversions: Internal conversions are desirable between primitives and their corresponding classes, which typed uses. For example, from primitive `true` to `new Boolean(true)` and vice versa. This is done by `T.typeOf` but there may be other cases where it is desirable. User-defined implicit (ie automatic) conversions may also be nice.
 
-- Type Requirements: While assertions can be used an the beginning of a method to validate its parameters' types, it would be nice to have this done for you, perhaps like so:
+- Type Requirements: Right now the arguments and return values of typedFunctions must equal the predetermined types. Users should be able to specify other options, namely supertypes or subtypes of the given types. Optional arguments would also be useful.
 
-        var makePerson = T.function({name: T.StringType, age: T.NumberType}, function(name, age) { ... });
-        makePerson(12, "test") // -> Error "name is not a type String."
+- Duck Typing: It'd rock. Related to this, user-defined methods to determine when an object is an instance of a type.
+
+- A Native Array Type & Compound Types: Javascript does a bad job distinguishing Arrays from general objects. typed should do better. Specifically, Array should support compound types, things like `Array[String]`. A Type should be able to have 0-n internal type requirements.
+
+- Automatic Type Registration: Rather than manually placing a user-defined type manually, typed should determine the best locate for the user.
 
 
 # Credits
