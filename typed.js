@@ -182,7 +182,7 @@ T = {
     // fallbacks
     if (obj instanceof Object) { return this.ObjectType; }
     // else we're really screwed
-    return this.UnknownType;
+    return this.AnyType;
   },
   'is': function(obj, type) {
     this.assertIsType(type);
