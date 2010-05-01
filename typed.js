@@ -150,7 +150,7 @@ T = {
     if (is == "undefined") {
       return this.AnyType;
     }
-    // else if we have a primative (Number, String, or Boolean (plus Function)
+    // else if we have a primitive (Number, String, or Boolean (plus Function)
     else if (is != "object")
     {
       // ugly way to get Number, String, Boolean, and Function objects, since all Types are based upon objects
