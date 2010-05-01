@@ -147,8 +147,11 @@ T = {
   // get the type of anything
   'typeOf': function(obj) {
     var is = typeof obj;
-    // if we have a primative (Number, String, or Boolean (plus Function)
-    if (is != "object")
+    if (is == "undefined") {
+      return this.AnyType;
+    }
+    // else if we have a primative (Number, String, or Boolean (plus Function)
+    else if (is != "object")
     {
       // ugly way to get Number, String, Boolean, and Function objects, since all Types are based upon objects
       return this.getTypeByObject(eval(is.substr(0,1).toUpperCase() + is.substr(1)));
@@ -187,7 +190,7 @@ T = {
   },
   'isType': function(obj) {
     return (obj instanceof this.Type);
-  }
+  },
   // given a Type, return the chain of its Types all the way back to Object
   'getTypeChain': function(type) {
     this.assertIsType(type);
