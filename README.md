@@ -18,7 +18,7 @@ Native Javascript objects have corresponding types with logical relationships.
     T.StringType.isSubtypeOf(T.ObjectType) // -> true
     T.NullType.isSubtypeOf(T.ObjectType) // -> false*
 
-\* `typeof null` return `"object"`, suggesting that `null` could be considered an object. I disagree.
+\* `typeof null` returns `"object"`, suggesting that `null` could be considered an object. I disagree.
 
 The tree organization of types means there must be a root type under which all types are descended. `Object` is _not_ the root, instead it is the artificial catch-all type `Any`:
     T.StringType.getTypeChain() // -> [T.StringType, T.ObjectType, T.AnyType]
@@ -40,6 +40,7 @@ You can define your own types:
     var AType = new Type("A", A);
     T.ObjectType.addChild(AType);
     T.getType(a) // -> type A
+    AType.getTypeChain() // -> [type AType, type Object, type Any]
     AType.children // -> []
     AType.parents // -> [T.ObjectType]*
 
@@ -65,20 +66,91 @@ You can also define strongly-typed functions where both the input and output mus
     );
     hello2("John Doe", 35) // -> Error: Return value of type Number is not type String.
 
-Many assertion methods are available. In all of them nothing is done if they pass, while an appropriate exception is thrown if not:
+Many testing methods are available. The standard ones return `true` or `false`. In the assertion methods nothing is done if the test passes, while an appropriate exception is thrown if not:
 
+    T.is("test", T.StringType) // -> true
     T.assertObjectIsType("test", T.StringType) // no errors
-    T.assertObjectIsSupertype("test", T.ObjectType) // Error "test is not a parent type of type Object."
-    T.typeIsSupertype(T.StringType, T.ObjectType) // Error "type String is not a parent type of type Object."
-    T.typeIsSupertype(T.ObjectType, T.StringType) // no errors
+    T.isSupertype("test", T.ObjectType) // -> false
+    T.assertObjectIsSupertype("test", T.ObjectType) // Error: test is not a parent type of type Object.
+    T.isSupertype(T.StringType, T.ObjectType) // -> true
+    T.assertTypeIsSupertype(T.StringType, T.ObjectType) // Error: type String is not a parent type of type Object.
+    T.isSupertype(T.ObjectType, T.StringType) // -> true
+    T.assertTypeIsSupertype(T.ObjectType, T.StringType) // no errors
+    
+## Type Conditions
+
+A `TypeCondition` is an extension of Type that provides a test to which objects can be submitted to see if they satisfy. The default test is simply whether the object has the specified type. However, you may wish provide your own, for instance when creating a `typedFunction`:
+
+    var hello = T.typedFunction(
+      {
+        name: new T.TypeCondition(
+          T.StringType,
+          function(object) {
+            return T.isSubtype(object, this.type);
+          }
+        )
+      },
+      T.StringType,
+      function(name) {
+        return "Hello. " + name.toString();
+      }
+    );
+    function RichString(input) {
+      this.value = input;
+    }
+    RichString.prototype = new String;
+    RichString.prototype.toString = function toString() { return "I'm " + this.value; }
+    hello(new RichString("John Doe")) // -> "Hello. I'm John Doe."
+
+In the example above we've declared a strongly-typed function that takes object that is a subtype of String (including String itself) and returns a String. We then create a subtype of String, RichString, and prove that it works.
+
+## Implicit Type Conversions
+
+An `Implicit` object that has been registered with typed's system of implicit type conversions will automatically be used to convert objects of the appropriate input type to the stated output type when the specific output type is desired. Note that the conversion function should *not* return a value if a valid conversion cannot be made. No return value, or rather that of `undefined`, is used as a signal that the conversion was unsuccessful and the next Implicit object should be tried.
+    
+    var string2Float = new T.Implicit(T.StringType, T.NumberType, function (object) {
+      T.assertObjectIsType(object, T.StringType);
+      var f = parseFloat(object.toString());
+      if (!isNaN(f)) {
+        return f;
+      }
+    });
+    T.Implicits.register(string2Float);
+    T.implicitlyConvert("1.0", T.NumberType) // -> 1
+    T.implicitlyConvert("X1.0", T.NumberType) // -> "X1.0"
+    T.implicitlyConvert("1.0", T.StringType) // -> "1.0"
+    
+Because implicit conversions can have dramatic effects on your type reasoning and can circumvent strong typing, you should use them with care. You are encouraged to only activate specific implicit conversions when you know they will save you time and lead to clearer code, for instance in an internal method.
+    
+`T.Implicits.activateOnRegistration` is set to `true` by default. You may set this to `false` to require an additional activation step. Implicits are activated and deactivated by calls to the appropriate methods with a variable number of Implicit object parameters. They remain registered (but not used!) regardless of their activation status.
+
+    T.Implicits.activate(string2Float);
+    T.Implicits.deactivate(string2Float);
+
+Note that we've actually being using the two built-in implicit conversions, which convert between Types and TypeConditions, for input and output type parameters of the Implicit constructor. Here is an example of `string2Float` that takes any subtype of `String`, which could be useful if you create your own `RichString` implementation in the future:
+
+    var string2Float = new T.Implict(
+      new T.TypeCondition(
+        T.StringType,
+        function(object) {
+          return T.isSubtype(object, T.StringType);
+        }
+      ),
+      T.NumberType,
+      function (object) {
+        T.assertObjectIsSubtype(object, T.StringType);
+        var f = parseFloat(object.toString());
+        if (!isNaN(f)) {
+          return f;
+        }
+      }
+    );
 
 # To Do
 
-- Type Conversions: Internal conversions are desirable between primitives and their corresponding classes, which typed uses. For example, from primitive `true` to `new Boolean(true)` and vice versa. This is done by `T.typeOf` but there may be other cases where it is desirable. User-defined implicit (ie automatic) conversions may also be nice.
+- Type Requirements: Optional arguments would be useful.
 
-- Type Requirements: Right now the arguments and return values of typedFunctions must equal the predetermined types. Users should be able to specify other options, namely supertypes or subtypes of the given types. Optional arguments would also be useful.
-
-- Duck Typing: It'd rock. Related to this, user-defined methods to determine when an object is an instance of a type.
+- Duck Typing: It'd rock. Related to this, using TypeCondtions to determine when an object is an instance of a type.
 
 - A Native Array Type & Compound Types: Javascript does a bad job distinguishing Arrays from general objects. typed should do better. Specifically, Array should support compound types, things like `Array[String]`. A Type should be able to have 0-n internal type requirements.
 

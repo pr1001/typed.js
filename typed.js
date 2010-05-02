@@ -118,11 +118,49 @@ T = {
     });
     return T.__flattenArr([type].concat(parents));
   },
+  '__type2TypeCondition': function __type2TypeCondition(type) {
+    T.assertIsType(type);
+    return new T.TypeCondition(type);
+  },
+  '__typeCondition2Type': function __typeCondition2Type(typeCondition) {
+    T.assertObjectIsType(typeCondition, T.TypeConditionType);
+    return typeCondition.type;
+  },
   'Type': function Type(name, value) {
     this.name = name;
     this.value = value;
     this.children = [];
     this.parents = [];
+  },
+  'TypeCondition': function TypeCondition(type, condition) {
+    T.assertIsType(type);
+    this.type = type;
+    // if condition is defined
+    if (T.isSubtype(condition, T.FunctionType)) {
+      // override the default condition
+      this.condition = condition;
+    }
+  },
+  'Implicit': function Implicit(input, output, f) {
+    if (!T.isType(input) && !T.is(input, T.TypeConditionType)) {
+      throw new Error("The input parameter of an Implicit must be a Type or TypeCondition.");
+    }
+    if (!T.isType(output) && !T.is(output, T.TypeConditionType)) {
+      throw new Error("The output parameter of an Implicit must be a Type or TypeCondition.");
+    }
+    T.assertObjectIsSubtype(f, T.FunctionType);
+    
+    // convert input and output to TypeConditions if necessary
+    if (T.isType(input)) {
+      input = T.__type2TypeCondition(input);
+    }
+    if (T.isType(output)) {
+      output = T.__type2TypeCondition(output);
+    }
+    
+    this.input = input;
+    this.output = output;
+    this.convert = f;
   },
   // get the corresponding Type for things from references like Object and "Function"
   'getType': function(input) {
@@ -207,9 +245,25 @@ T = {
   'typedFunction': function typedFunction(input, output, f) {
     // take an object, convert to an array for internal use
     var inputArr = [];
-    for (var i in input) {
-      this.assertIsType(input[i]);
-      inputArr.push({'parameter': i, 'type': input[i]});
+    for (var i in input) {      
+      var tmp = input[i];
+      if (!T.isType(tmp) && !T.is(tmp, T.TypeConditionType)) {
+        throw new Error("Each function parameter must be defined with a Type or TypeCondition.");
+      }
+      // convert input and output to TypeConditions if necessary
+      if (T.isType(tmp)) {
+        tmp = T.__type2TypeCondition(tmp);
+      }
+      inputArr.push({'parameter': i, 'typeCondition': tmp});
+    }
+    
+    // check the output value
+    if (!T.isType(output) && !T.is(output, T.TypeConditionType)) {
+      throw new Error("The expected output must be a Type or TypeCondition.");
+    }
+    // convert input and output to TypeConditions if necessary
+    if (T.isType(output)) {
+      output = T.__type2TypeCondition(output);
     }
     
     return function() {
@@ -221,21 +275,62 @@ T = {
       
       // get that each argument is the expected type
       for (var k = 0; k < argsArr.length; k++) {
-        if (!T.is(argsArr[k], inputArr[k].type)) {
-          throw new Error("Parameter " + inputArr[k].parameter + " is not " + inputArr[k].type + ".");
+        if (!inputArr[k].typeCondition.test(argsArr[k])) {
+          throw new Error("Parameter " + inputArr[k].parameter + " does not satisfy " + inputArr[k].typeCondition);
         }
       }
       
       // call the function with the arguments
       var result = f.apply(f, argsArr);
       
-      // check that the return tpye is the expected type
-      if (!T.is(result, output)) {
-        throw new Error("Return value of " + T.typeOf(result) + " is not " + output + ".");
+      // check that the return type statisfies the output TypeCondition
+      if (!output.test(result)) {
+        throw new Error("Return value of " + T.typeOf(result) + " does not satisfy " + output);
       }
       // return the result
       return result;
     }
+  },
+  'implicitlyConvert': function implicitlyConvert(obj, type) {
+    // no need to convert, as the object is already of the correct type
+    if (T.is(obj, type)) {
+      return obj;
+    }
+    
+    var objType = T.typeOf(obj);
+    
+    // get all implicits that go from objType -> type
+    var usefulImplicits = [];
+    for (var k = 0; k < T.Implicits.__active.length; k++) {
+      var implicit = T.Implicits.__active[k];
+      // if an exact match, try conversion now
+      if (objType.is(implicit.input.type) && type.is(implicit.output.type)) {
+        var ret = implicit.convert(obj);
+        // if we got a valid result, return it immediately
+        if (T.isSubtype(ret, T.ObjectType)) {
+          return ret;
+        }
+        //  otherwise continue on
+      } else if (implicit.input.test(objType) && implicit.output.test(type)) {
+        // else if use the implicit if it has a broader match (ie perhaps a subtype test)
+        usefulImplicits.push(implicit);
+      }
+    }
+    // sort usefulImplicits according to typeChain of objType?
+
+    // loop through usefulImplicits
+    for (var k = 0; k < usefulImplicits.length; k++) {
+      // try converting
+      var ret = usefulImplicits[k].convert(obj);
+      // if we got a valid result, return it immediately
+      if (T.isSubtype(ret, T.ObjectType)) {
+        return ret;
+      }
+      //  otherwise continue on
+    }
+        
+    // if we get here we've failed, just return the original value
+    return obj;
   },
   'assertIsType': function(type) {
     if (!(type instanceof this.Type)) {
@@ -315,7 +410,6 @@ T.Type.prototype.addParent = function addParent(anotherType) {
 T.Type.prototype.getTypeChain = function getTypeChain() {
   return T.__getTypeChain(this);
 }
-
 // NOTE: a Type is considered both a subtype and a supertype of itself
 T.Type.prototype.isSubtypeOf = function isSubtypeOf(type) {
   T.assertIsType(type);
@@ -326,11 +420,27 @@ T.Type.prototype.isSubtypeOf = function isSubtypeOf(type) {
   return false;
 }
 T.Type.prototype.isSupertypeOf = function isSubtypeOf(type) {
+  T.assertIsType(type);
   var chain = type.getTypeChain();
   for (var k = 0; k < chain.length; k++) {
     if (this == chain[k]) { return true; }
   }
   return false;
+}
+
+// by default the condition is one of equality
+T.TypeCondition.prototype.toString = function toString() {
+  return "type condition of " + this.type + " with condition " + this.condition;
+}
+T.TypeCondition.prototype.condition = function condition(obj) {
+  return T.is(obj, this.type);
+}
+T.TypeCondition.prototype.test = function test(obj) {
+  return this.condition(obj);
+}
+
+T.Implicit.prototype.toString = function toString() {
+  return "Implicit from " + this.input.type + " to " + this.output.type;
 }
 
 // all types descend from Any
@@ -348,6 +458,10 @@ T.ObjectType = new T.Type("Object", Object);
 T.Types.addChild(T.ObjectType);
 T.TypeType = new T.Type("Type", T.Type); // Type is a Type!
 T.ObjectType.addChild(T.TypeType);
+T.TypeConditionType = new T.Type("TypeCondition", T.TypeCondition);
+T.TypeType.addChild(T.TypeConditionType); // TypeCondition is a subtype of Type
+T.ImplicitType = new T.Type("Implicit", T.Implicit);
+T.TypeType.addChild(T.ImplicitType); // TypeCondition is a subtype of Type
 T.BooleanType = new T.Type("Boolean", Boolean);
 T.ObjectType.addChild(T.BooleanType);
 T.NumberType = new T.Type("Number", Number);
@@ -358,3 +472,59 @@ T.FunctionType = new T.Type("Function", Function);
 T.ObjectType.addChild(T.FunctionType);
 T.DateType = new T.Type("Date", Date);
 T.ObjectType.addChild(T.DateType);
+
+T.Implicits = {}
+T.Implicits.__all = [];
+T.Implicits.all = function all() { return this.__all; }
+T.Implicits.__active = [];
+T.Implicits.activateOnRegistration = true;
+T.Implicits.activate = function activate() {
+  var argsArr = Array.prototype.slice.call(arguments);
+  
+  // check that all args are Implicits
+  for (var k = 0; k < argsArr.length; k++) {
+    T.assertObjectIsType(argsArr[k], T.ImplicitType);
+  }
+
+  // loop through args, adding each Implicit to __active if it is not already there
+  for (var k = 0; k < argsArr.length; k++) {
+    if (T.Implicits.__active.indexOf(argsArr[k]) == -1) {
+      // add the element
+      T.Implicits.__active.push(argsArr[k]);
+    }
+  }  
+}
+T.Implicits.deactivate = function deactivate() {
+  var argsArr = Array.prototype.slice.call(arguments);
+  
+  // check that all args are Implicits
+  for (var k = 0; k < argsArr.length; k++) {
+    T.assertObjectIsType(argsArr[k], T.ImplicitType);
+  }
+  
+  // loop through args, removing each Implicit from __active if it is there
+  for (var k = 0; k < argsArr.length; k++) {
+    var locInArr = T.Implicits.__active.indexOf(argsArr[k]);
+    if (locInArr > -1) {
+      // remove the element
+      T.Implicits.__active.splice(locInArr, 1);
+    }
+  }
+
+}
+T.Implicits.register = function register(implicit) {
+  T.assertObjectIsType(implicit, T.ImplicitType);
+  
+  // if not already in the __all array
+  if (T.Implicits.__all.indexOf(implicit) == -1) {
+    T.Implicits.__all.push(implicit);
+  }
+  
+  // if we should also active
+  if (T.Implicits.activateOnRegistration) {
+    T.Implicits.activate(implicit);
+  }
+}
+// register our basic implicits to convert between Types and TypeConditions
+T.Implicits.register(new T.Implicit(T.TypeType, T.TypeConditionType, T.__type2TypeCondition));
+T.Implicits.register(new T.Implicit(T.TypeConditionType, T.TypeType, T.__typeCondition2Type));
