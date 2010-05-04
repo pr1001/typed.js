@@ -281,7 +281,7 @@ T = {
       }
       
       // call the function with the arguments
-      var result = f.apply(f, argsArr);
+      var result = f.apply(this, argsArr);
       
       // check that the return type statisfies the output TypeCondition
       if (!output.test(result)) {

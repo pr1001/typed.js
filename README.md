@@ -65,6 +65,19 @@ You can also define strongly-typed functions where both the input and output mus
       function(name, age) { return age; }
     );
     hello2("John Doe", 35) // -> Error: Return value of type Number is not type String.
+    
+Strongly-typed functions can even be used to create class constructors. Note that because our constructor doesn't return anything we use the `T.Any` `TypeCondition`:
+
+    var Person = T.typedFunction({name: T.StringType, age: T.NumberType}, T.Any, function(name, age) { this.name = name; this.age = age; });
+    var jd = new Person("John Doe", 35);
+    jd.name // -> "John Doe"
+    var js = new Person("John Doe", "35"); // Error: Parameter age does not satisfy type condition of type Number with condition function condition(obj) { return T.is(obj, this.type); }
+    T.typeOf(peter) // -> type Object
+    T.is(peter, Person) // Error: function () { ... } is not a Type
+    T.PersonType = new T.Type("Person", Person);
+    T.ObjectType.addChild(T.PersonType);
+    T.typeOf(peter) // -> type Person
+    T.is(peter, T.PersonType) // -> true
 
 Many testing methods are available. The standard ones return `true` or `false`. In the assertion methods nothing is done if the test passes, while an appropriate exception is thrown if not:
 
