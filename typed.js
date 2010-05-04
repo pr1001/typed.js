@@ -210,7 +210,7 @@ T = {
       if (type != this.UnknownType) {
         return type;
       }
-      // else go through the tree from the bottom up and see whether the object is an intance of any of the types
+      // else go through the tree from the bottom up and see whether the object is an instance of any of the types
       type = this.getTypeByInstance(tmp)
       // if we've a match, immediately return since we're going from specific to general
       if (type != this.UnknownType) {
@@ -439,41 +439,10 @@ T.TypeCondition.prototype.test = function test(obj) {
   return this.condition(obj);
 }
 
+T.Implicits = {}
 T.Implicit.prototype.toString = function toString() {
   return "Implicit from " + this.input.type + " to " + this.output.type;
 }
-
-// all types descend from Any
-T.AnyType = new T.Type("Any", undefined);
-T.Types = T.AnyType;
-
-// special Javascript types that can never be objectified
-T.NullType = new T.Type("Null", null);
-T.Types.addChild(T.NullType);
-T.UnknownType = new T.Type("Unknown", undefined);
-T.Types.addChild(T.UnknownType);
-
-// create Types for all standard types and place them in the appropriate points on the type tree
-T.ObjectType = new T.Type("Object", Object);
-T.Types.addChild(T.ObjectType);
-T.TypeType = new T.Type("Type", T.Type); // Type is a Type!
-T.ObjectType.addChild(T.TypeType);
-T.TypeConditionType = new T.Type("TypeCondition", T.TypeCondition);
-T.TypeType.addChild(T.TypeConditionType); // TypeCondition is a subtype of Type
-T.ImplicitType = new T.Type("Implicit", T.Implicit);
-T.TypeType.addChild(T.ImplicitType); // TypeCondition is a subtype of Type
-T.BooleanType = new T.Type("Boolean", Boolean);
-T.ObjectType.addChild(T.BooleanType);
-T.NumberType = new T.Type("Number", Number);
-T.ObjectType.addChild(T.NumberType);
-T.StringType = new T.Type("String", String);
-T.ObjectType.addChild(T.StringType);
-T.FunctionType = new T.Type("Function", Function);
-T.ObjectType.addChild(T.FunctionType);
-T.DateType = new T.Type("Date", Date);
-T.ObjectType.addChild(T.DateType);
-
-T.Implicits = {}
 T.Implicits.__all = [];
 T.Implicits.all = function all() { return this.__all; }
 T.Implicits.__active = [];
@@ -525,6 +494,40 @@ T.Implicits.register = function register(implicit) {
     T.Implicits.activate(implicit);
   }
 }
+
+// all types descend from Any
+T.AnyType = new T.Type("Any", undefined);
+T.Types = T.AnyType;
+
+// special Javascript types that can never be objectified
+T.NullType = new T.Type("Null", null);
+T.Types.addChild(T.NullType);
+T.UnknownType = new T.Type("Unknown", undefined);
+T.Types.addChild(T.UnknownType);
+
+// create Types for all standard types and place them in the appropriate points on the type tree
+T.ObjectType = new T.Type("Object", Object);
+T.Types.addChild(T.ObjectType);
+T.TypeType = new T.Type("Type", T.Type); // Type is a Type!
+T.ObjectType.addChild(T.TypeType);
+T.TypeConditionType = new T.Type("TypeCondition", T.TypeCondition);
+T.TypeType.addChild(T.TypeConditionType); // TypeCondition is a subtype of Type
+T.ImplicitType = new T.Type("Implicit", T.Implicit);
+T.TypeType.addChild(T.ImplicitType); // TypeCondition is a subtype of Type
+T.BooleanType = new T.Type("Boolean", Boolean);
+T.ObjectType.addChild(T.BooleanType);
+T.NumberType = new T.Type("Number", Number);
+T.ObjectType.addChild(T.NumberType);
+T.StringType = new T.Type("String", String);
+T.ObjectType.addChild(T.StringType);
+T.FunctionType = new T.Type("Function", Function);
+T.ObjectType.addChild(T.FunctionType);
+T.DateType = new T.Type("Date", Date);
+T.ObjectType.addChild(T.DateType);
+
+
 // register our basic implicits to convert between Types and TypeConditions
 T.Implicits.register(new T.Implicit(T.TypeType, T.TypeConditionType, T.__type2TypeCondition));
 T.Implicits.register(new T.Implicit(T.TypeConditionType, T.TypeType, T.__typeCondition2Type));
+
+T.Any = new T.TypeCondition(T.AnyType, function() { return true; });
