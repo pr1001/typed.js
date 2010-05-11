@@ -161,15 +161,40 @@ Note that we've actually being using the two built-in implicit conversions, whic
       }
     );
 
+## Arrays
+
+Arrays can be strongly typed, allowing you to specify. All Types have corresponding Array subtypes.
+
+    T.typeOf([true, false]) // -> type Array[Boolean]
+    T.typeOf([1, 2]) // -> type Array[Number]
+    T.is([1, "2"], T.ArrayStringType) // -> false
+    T.isSubtype([1, "2"], T.ArrayType) // -> true
+    T.typeOf([new Date(), {}]) // -> type Array[Any]
+    T.is([1, 2], T.ArrayNumberType) // -> true
+
+As you'll notice, right now heterogenous arrays are always found to be 'type Array[Any]'. Future versions of this library will attempt to find other, more-specific common ancestors.
+
+Of course you can create your own Array types. Reusing our Person type from our earlier example:
+
+    var ArrayPersonType = new T.Type("Array[Person]", Array, [Person]);
+    T.ArrayType.addChild(ArrayPersonType);
+    var people = [new Person("John Doe", 35), new Person("Jane Doe", 35)];
+    T.is(people, ArrayPersonType) // -> true
+    T.typeOf(people) // -> type Array[Person]
+    
+// Notice the addition of a third parameter to the Type constructor, the Type's inner types. This must an one-element Array of Types or TypeConditions (note that an implicit conversion is done from the former to the latter). Future version will let you specify multiple inner types.
+
 # To Do
 
 - Type Requirements: Optional arguments would be useful.
 
-- Duck Typing: It'd rock. Related to this, using TypeCondtions to determine when an object is an instance of a type.
+- Duck Typing: It'd rock. Related to this, using TypeConditions to determine when an object is an instance of a type. NOTE: It's probably possible right now if you write your TypeConditions carefully.
 
-- A Native Array Type & Compound Types: Javascript does a bad job distinguishing Arrays from general objects. typed should do better. Specifically, Array should support compound types, things like `Array[String]`. A Type should be able to have 0-n internal type requirements.
+- Better Compound Types:  Arrays with heterogeneous contents should be of the lowest subclass possible, not the greatest (i.e. 'type Array[Any]'). For example, T.typeOf([1, boolean]) should return 'type Array[Object]' instead of 'type Array[Any]'. Also, support for Object-based compound types (e.g. 'type Object[Function]') and for multiple inner types (e.g. 'type Array[Number, Function]), which should probably be based upon the former.
 
 - Automatic Type Registration: Rather than manually placing a user-defined type manually, typed should determine the best locate for the user.
+
+- Figure out implicits and registration of implicit types such that this works: function A(){}; var a1 = new A(); T.is(a1, A) === true. Watch for introducing crazy implicits or littering the type tree with implicit temporary types.
 
 
 # Credits
