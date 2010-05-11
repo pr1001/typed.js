@@ -126,7 +126,13 @@ T = {
     T.assertObjectIsType(typeCondition, T.TypeConditionType);
     return typeCondition.type;
   },
-  'Type': function Type(name, value) {
+  '__any2Type': function __any2Type(object) {
+    return new T.Type("implicit type " + object, object);
+  },
+  '__any2String': function __any2String(object) {
+    return object.toString();
+  },
+  'Type': function Type(name, value, innertypes) {
     this.name = name;
     this.value = value;
     this.children = [];
@@ -186,7 +192,7 @@ T = {
   'typeOf': function(obj) {
     var is = typeof obj;
     if (is == "undefined") {
-      return this.AnyType;
+      return this.UnitType;
     }
     // else if we have a primitive (Number, String, or Boolean (plus Function)
     else if (is != "object")
@@ -495,9 +501,9 @@ T.Implicits.register = function register(implicit) {
   }
 }
 
-// all types descend from Any
-T.AnyType = new T.Type("Any", undefined);
-T.Types = T.AnyType;
+// all types descend from Unit
+T.UnitType = new T.Type("Unit", undefined);
+T.Types = T.UnitType;
 
 // special Javascript types that can never be objectified
 T.NullType = new T.Type("Null", null);

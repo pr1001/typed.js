@@ -20,12 +20,12 @@ Native Javascript objects have corresponding types with logical relationships.
 
 \* `typeof null` returns `"object"`, suggesting that `null` could be considered an object. I disagree.
 
-The tree organization of types means there must be a root type under which all types are descended. `Object` is _not_ the root, instead it is the artificial catch-all type `Any`:
-    T.StringType.getTypeChain() // -> [T.StringType, T.ObjectType, T.AnyType]
+The tree organization of types means there must be a root type under which all types are descended. `Object` is _not_ the root, instead it is the artificial type `Unit`:
+    T.StringType.getTypeChain() // -> [T.StringType, T.ObjectType, T.UnitType]
 
-`Any` can also be accessed at `T.Types` and has the following children:
+`Unit` can also be accessed at `T.Types` and has the following children:
     T.Types.children // -> [T.NullType, T.UnknownType, T.Object]
-    T.typeOf(undefined) // -> T.AnyType
+    T.typeOf(undefined) // -> T.UnitType
 
 `UnknownType` is returned when a type is expected but one cannot be found:
 
@@ -116,6 +116,8 @@ A `TypeCondition` is an extension of Type that provides a test to which objects 
     hello(new RichString("John Doe")) // -> "Hello. I'm John Doe."
 
 In the example above we've declared a strongly-typed function that takes object that is a subtype of String (including String itself) and returns a String. We then create a subtype of String, RichString, and prove that it works.
+
+One `TypeCondition` is defined for you, `Any`. `T.Any` will always return true - that is, it matches `Unit` and all its subtypes.
 
 ## Implicit Type Conversions
 
