@@ -692,21 +692,21 @@ T.ArrayType.addChild(T.ArrayUnitType);
 T.ArrayObjectType = new T.Type("Array[Object]", Array, [T.ObjectType]);
 T.ArrayType.addChild(T.ArrayObjectType);
 T.ArrayTypeType = new T.Type("Array[Type]", Array, [T.TypeType]);
-T.ArrayType.addChild(T.ArrayTypeType);
+T.ArrayObjectType.addChild(T.ArrayTypeType);
 T.ArrayTypeConditionType = new T.Type("Array[TypeCondition]", Array, [T.TypeConditionType]);
-T.ArrayType.addChild(T.ArrayTypeConditionType);
+T.ArrayTypeType.addChild(T.ArrayTypeConditionType);
 T.ArrayImplicitType = new T.Type("Array[Implicit]", Array, [T.ImplicitType]);
-T.ArrayType.addChild(T.ArrayImplicitType);
+T.ArrayTypeType.addChild(T.ArrayImplicitType);
 T.ArrayBooleanType = new T.Type("Array[Boolean]", Array, [T.BooleanType]);
-T.ArrayType.addChild(T.ArrayBooleanType);
+T.ArrayObjectType.addChild(T.ArrayBooleanType);
 T.ArrayNumberType = new T.Type("Array[Number]", Array, [T.NumberType]);
-T.ArrayType.addChild(T.ArrayNumberType);
+T.ArrayObjectType.addChild(T.ArrayNumberType);
 T.ArrayStringType = new T.Type("Array[String]", Array, [T.StringType]);
-T.ArrayType.addChild(T.ArrayStringType);
+T.ArrayObjectType.addChild(T.ArrayStringType);
 T.ArrayFunctionType = new T.Type("Array[Function]", Array, [T.FunctionType]);
-T.ArrayType.addChild(T.ArrayFunctionType);
+T.ArrayObjectType.addChild(T.ArrayFunctionType);
 T.ArrayDateType = new T.Type("Array[Date]", Array, [T.DateType]);
-T.ArrayType.addChild(T.ArrayDateType);
+T.ArrayObjectType.addChild(T.ArrayDateType);
 
 /*
 // Arrays with innertypes that match on their subclasses
