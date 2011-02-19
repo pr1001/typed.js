@@ -91,9 +91,9 @@ T = {
       });
       // flatten array (necessary?)
       childTypes = T.__flattenArr(childTypes);
-      // remove UnknownTypes
+      // remove UnitTypes
       childTypes = childTypes.filter(function(aType) {
-        return (aType != T.UnknownType);
+        return (aType != T.UnitType);
       })
       // if anything left, return it (should be one, but even if there isn't for some strange reason, just take the first element of the arr)
       if (childTypes.length > 0) {
@@ -101,11 +101,11 @@ T = {
         // return childTypes.shift();
         return T.__chooseMatchingType(obj, childTypes);
       }
-      // else, return UnknownType
-      return T.UnknownType;
+      // else, return UnitType
+      return T.UnitType;
     }
     // nowhere else to search, so unknown
-    return T.UnknownType;
+    return T.UnitType;
   },
   '__findTypeByString': function __findTypeByString(name, type) {
     // compare search string to the name of the current type
@@ -117,20 +117,20 @@ T = {
       });
       // flatten array (necessary?)
       childTypes = T.__flattenArr(childTypes);
-      // remove UnknownTypes
+      // remove UnitTypes
       childTypes = childTypes.filter(function(aType) {
-        return (aType != T.UnknownType);
+        return (aType != T.UnitType);
       })
       // if anything left, return it (should be one, but even if there isn't for some strange reason, just take the first element of the arr)
       if (childTypes.length > 0) {
         // FIXME: sort according to strength of match, paying attention to innertypes?
         return childTypes.shift();
       }
-      // else, return UnknownType
-      return T.UnknownType;
+      // else, return UnitType
+      return T.UnitType;
     } else {
        // nowhere else to search, so unknown
-      return T.UnknownType;
+      return T.UnitType;
     } el
   },
   '__findTypeByInstance': function __findTypeByInstance(instance, type) {
@@ -149,9 +149,9 @@ T = {
     });
     // flatten
     childTypes = T.__flattenArr(childTypes);
-    // remove UnknownTypes
+    // remove UnitTypes
     childTypes = childTypes.filter(function(aType) {
-      return (aType != T.UnknownType);
+      return (aType != T.UnitType);
     })
     
     // if anything left, return it (should be one, but even if there isn't for some strange reason, just take the first element of the arr)
@@ -174,8 +174,8 @@ T = {
       return type;
     }
     
-    // else, return UnknownType
-    return T.UnknownType;
+    // else, return UnitType
+    return T.UnitType;
   },
   '__getProtoObjects': function __getProtoObjects(obj) {
     // if obj.__proto__ is null then obj is Object
@@ -310,13 +310,13 @@ T = {
       var tmp = objs[k]
       var type = this.getTypeByObject(tmp);
       // if we've a match, immediately return since we're going from specific to general
-      if (type != this.UnknownType) {
+      if (type != this.UnitType) {
         return type;
       }
       // else go through the tree from the bottom up and see whether the object is an instance of any of the types
       type = this.getTypeByInstance(tmp)
       // if we've a match, immediately return since we're going from specific to general
-      if (type != this.UnknownType) {
+      if (type != this.UnitType) {
         return type;
       }
     }
@@ -645,8 +645,6 @@ T.Types = T.UnitType;
 // special Javascript types that can never be objectified
 T.NullType = new T.Type("Null", null);
 T.Types.addChild(T.NullType);
-T.UnknownType = new T.Type("Unknown", undefined);
-T.Types.addChild(T.UnknownType);
 
 // create Types for all standard types and place them in the appropriate points on the type tree
 T.ObjectType = new T.Type("Object", Object);
@@ -689,8 +687,8 @@ T.ObjectType.addChild(T.ArrayType);
 
 T.ArrayNullType = new T.Type("Array[Null]", Array, [T.NullType]);
 T.ArrayType.addChild(T.ArrayNullType);
-T.ArrayUnknownType = new T.Type("Array[Unknown]", Array, [T.UnknownType]);
-T.ArrayType.addChild(T.ArrayUnknownType);
+T.ArrayUnitType = new T.Type("Array[Unit]", Array, [T.UnitType]);
+T.ArrayType.addChild(T.ArrayUnitType);
 T.ArrayObjectType = new T.Type("Array[Object]", Array, [T.ObjectType]);
 T.ArrayType.addChild(T.ArrayObjectType);
 T.ArrayTypeType = new T.Type("Array[Type]", Array, [T.TypeType]);
@@ -715,8 +713,8 @@ T.ArrayType.addChild(T.ArrayDateType);
 // FIXME: Need to change __chooseMatchingType() to prioritize exact matches over theTypeCondition.test(element) === true and subclasses over their parents
 T.ArrayNullType = new T.Type("Array[Null]", Array, [new T.TypeCondition(T.NullType, function(object) { return T.isSubtype(object, this.type); })]);
 T.ArrayType.addChild(T.ArrayNullType);
-T.ArrayUnknownType = new T.Type("Array[Unknown]", Array, [new T.TypeCondition(T.UnknownType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayUnknownType);
+T.ArrayUnitType = new T.Type("Array[Unit]", Array, [new T.TypeCondition(T.UnitType, function(object) { return T.isSubtype(object, this.type); })]);
+T.ArrayType.addChild(T.ArrayUnitType);
 T.ArrayObjectType = new T.Type("Array[Object]", Array, [new T.TypeCondition(T.ObjectType, function(object) { return T.isSubtype(object, this.type); })]);
 T.ArrayType.addChild(T.ArrayObjectType);
 T.ArrayTypeType = new T.Type("Array[Type]", Array, [new T.TypeCondition(T.TypeType, function(object) { return T.isSubtype(object, this.type); })]);
