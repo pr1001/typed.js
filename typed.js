@@ -17,17 +17,14 @@ T = {
       throw new Error("An Array of TypeConditions is required.");
     }
     
-    // print("types before sort: " + types);
-    
     types.sort(function (a, b) {
-      // print("input: " + input);
+      // TODO: Can work for all collection types by using the input type's checkInnerType method across all inner types
+      //   then, flatten tests into testA and testB, continue as before
+      
       // input is an array, so we can check innertypes
       if (input instanceof Array) {
         // if we're dealing with only a single innertype
         if (typeof a.innertypes !== "undefined" && typeof b.innertypes !== "undefined" && a.innertypes.length === 1 && b.innertypes.length === 1) {
-          // print("if");
-          // print("a.innertypes: " + a.innertypes)
-          // print("b.innertypes: " + b.innertypes)
           
           var testA = input.map(function (val) {
             return a.innertypes[0].test(val);
@@ -35,9 +32,6 @@ T = {
           var testB = input.map(function (val) {
             return b.innertypes[0].test(val);
           });
-          
-          // print("testA: " + testA);
-          // print("testB: " + testB);
           
           // if A's innertypes are a better match to input than B's innertypes
           if (testA.indexOf(false) === -1 && testB.indexOf(false) > -1) {
@@ -60,7 +54,7 @@ T = {
       return 0;
     });
     
-    // print("types after sort: " + types);
+    // TODO: Support all collections, test all the inner types against the input collection's elements
     // check if there was only one child, so sort didn't get called
     // input is an array, so we can check innertypes
     if (input instanceof Array) {
@@ -153,7 +147,7 @@ T = {
     childTypes = childTypes.filter(function(aType) {
       return (aType != T.UnitType);
     })
-    
+     
     // if anything left, return it (should be one, but even if there isn't for some strange reason, just take the first element of the arr)
     if (childTypes.length > 0) {
       // FIXME: sort according to strength of match, paying attention to innertypes?
@@ -216,6 +210,7 @@ T = {
     this.parents = [];
     this.innertypes = [];
     
+    // innertypes must be an array because we've have a our ArrayType constructor dependent on itself otherwise
     if (innertypes instanceof Array) {
       for (var k = 0; k < innertypes.length; k++) {
         var innertype = T.implicitlyConvert(innertypes[k], T.TypeConditionType);
@@ -240,12 +235,6 @@ T = {
   },
   'Implicit': function Implicit(input, output, f) {
     if (!T.isType(input) && !T.isSubtype(input, T.TypeConditionType)) {
-      // print("bad Implicit input: " + input);
-      // print("is type: " + T.isType(input));
-      // print("typeOf: " + T.typeOf(input));
-      // print("isSubtype: " + T.isSubtype(input, T.TypeConditionType));
-      // print("is instance: " + (input instanceof T.TypeCondition));
-      // print("proto: " + input.__proto__);
       throw new Error("The input parameter of an Implicit must be a Type or TypeCondition.");
     }
     if (!T.isType(output) && !T.is(output, T.TypeConditionType)) {
@@ -307,7 +296,7 @@ T = {
     // go through its proto objects (plus itself) and look for a type
     var objs = [obj].concat(this.__getProtoObjects(obj))
     for (var k = 0; k < objs.length; k++) {
-      var tmp = objs[k]
+      var tmp = objs[k];
       var type = this.getTypeByObject(tmp);
       // if we've a match, immediately return since we're going from specific to general
       if (type != this.UnitType) {
@@ -327,32 +316,18 @@ T = {
   },
   'is': function(obj, type) {
     this.assertIsType(type);
-    var isType = (this.typeOf(obj) == type);
-    
-    // TODO: all this not needed for arrays!?!
-    // deal with innertypes
-    // if (T.isSubtype(obj, T.ArrayType)) {
-    if (obj instanceof Array) {
-      var type = this.typeOf(obj);
-      
-      // print("exact type: " + type);
-      // print("isType: " + isType);
-      
-      // if its type only has one innertype, simply compare each element to the innertype
-      if (type.innertypes.length == 1) {
-        // iterate over array comparing types
-        for (var k = 0; k < obj.length; k++) {
-          isType = type.innertypes[0].test(obj[k]);
-          if (isType === false) {
-            return isType;
-          }
+    // if the basic types match
+    if (this.typeOf(obj) == type) {
+      // for each inner type of the given type
+      for (var innerTypeKey in type.innertypes) {
+        // make sure the given object obeys the type condition
+        if (type.checkInnerType(obj, innerTypeKey, type.innertypes[innerTypeKey]) === false) {
+          return false;
         }
-      } else {
-        // we need to figure out how to compare the object's properties with the appropriate innertypes
       }
+      return true;
     }
-    
-    return isType;
+    return false;
   },
   'isType': function(obj) {
     return (obj instanceof this.Type);
@@ -570,6 +545,46 @@ T.Type.prototype.isSupertypeOf = function isSubtypeOf(type) {
   }
   return false;
 }
+// collection types should implement a resolver function that, given the index and and TypeCondition of the type parameter, determines whether all elements of the collection follow the type
+// default resolver
+T.Type.prototype.checkInnerType = function checkInnerType(thing, innerTypeIndex, innerTypeCondition) {
+  return true;
+}
+// used to get the elements of a collection
+T.Type.prototype.__getElements = function __getElements(obj) {
+  return [];
+}
+// collection types should implement a function that will return the most specific match for inner types based upon the provided collection
+T.Type.prototype.__getInnerTypes = function __getInnerTypes(obj) {
+  // var elements = this.__getElements(obj);
+  // var types = elements.map(function(item) { return T.typeOf(item); });
+  // make the new types array unique
+  // figure out the best possible inner types based upon the elements of the object
+  // return T.__chooseMatchingType(elements, types.concat[T.UnitType]) ?
+  return [];
+}
+// creates a more specific collection type based upon a more general one
+T.Type.prototype.__upgradeCollectionType = function __upgradeCollectionType(obj) {
+  // if we have innertypes that we can use to create a more specific type based upon the general one
+  if (this.innertypes.length > 0) {
+    // get all innertypes of the given object
+    var newInnerTypes = this.__getInnerTypes(obj);
+    // check that each new innertype is a subtype of the existing type's innertypes AND NOT EQUAL!
+    // create a new name based upon the existing type's name
+    var namePortions = this.name.split(/\[|\]/)
+    // e.g. Object[Number]
+    var newDisplayName = namePortions[0] + "[" + newInnerTypes.join(", ") + "]";
+    // e.g. ObjectNumberType, ObjectObjectNumberType
+    var newTypeName = namePortions[0] + newInnerTypes.map(function (t) { return t.name.replace("[", "").replace("]", ""); }).join("") + "Type";
+    // create a new Type based upon the existing one
+    T[newTypeName] = new T.Type(newDisplayName, this.value, newInnerTypes);
+    // check if this type is the best one to hang the new one off of
+    // but for now, assume so
+    this.addChild(T[newTypeName]);
+    return T[newTypeName];
+  }
+  return this;
+}
 
 // by default the condition is one of equality
 T.TypeCondition.prototype.toString = function toString() {
@@ -647,14 +662,15 @@ T.NullType = new T.Type("Null", null);
 T.Types.addChild(T.NullType);
 
 // create Types for all standard types and place them in the appropriate points on the type tree
-T.ObjectType = new T.Type("Object", Object);
+T.ObjectType = new T.Type("Object", Object, []); // empty type conditions since we require T.Any
 T.Types.addChild(T.ObjectType);
+// Ideally all these types which are children of ObjectType would be created by inheriting from it.
 T.TypeType = new T.Type("Type", T.Type); // Type is a Type!
 T.ObjectType.addChild(T.TypeType);
 T.TypeConditionType = new T.Type("TypeCondition", T.TypeCondition);
 T.TypeType.addChild(T.TypeConditionType); // TypeCondition is a subtype of Type
 T.ImplicitType = new T.Type("Implicit", T.Implicit);
-T.TypeType.addChild(T.ImplicitType); // TypeCondition is a subtype of Type
+T.TypeType.addChild(T.ImplicitType); // Implicit is a subtype of Type
 T.BooleanType = new T.Type("Boolean", Boolean);
 T.ObjectType.addChild(T.BooleanType);
 T.NumberType = new T.Type("Number", Number);
@@ -682,9 +698,24 @@ T.__log = T.typedFunction(
   T.__logger
 );
 
-T.ArrayType = new T.Type("Array[Any]", Array, [T.Any]);
-T.ObjectType.addChild(T.ArrayType);
+// now we can setup the correct inner types for T.ObjectType
+T.ObjectType.innertypes = [T.Any];
+// the Object Type can validate its elements based upon innertypes
+T.ObjectType.checkInnerType = function checkInnerType(thing, innerTypeIndex, innerTypeCondition) {
+  innerTypeCondition = T.implicitlyConvert(innerTypeCondition, T.TypeConditionType);
+  for (var key in thing) {
+    if (thing.hasOwnProperty(key) && !innerTypeCondition.test(thing[key])) {
+      return false;
+    }
+  }
+  return true;
+}
 
+T.ArrayType = new T.Type("Array[Any]", Array, [T.Any]);
+// the Array Type can validate its elements based upon its innertype
+T.ArrayType.checkInnerType = T.ObjectType.checkInnerType;
+
+T.ObjectType.addChild(T.ArrayType);
 T.ArrayNullType = new T.Type("Array[Null]", Array, [T.NullType]);
 T.ArrayType.addChild(T.ArrayNullType);
 T.ArrayUnitType = new T.Type("Array[Unit]", Array, [T.UnitType]);
@@ -707,30 +738,3 @@ T.ArrayFunctionType = new T.Type("Array[Function]", Array, [T.FunctionType]);
 T.ArrayType.addChild(T.ArrayFunctionType);
 T.ArrayDateType = new T.Type("Array[Date]", Array, [T.DateType]);
 T.ArrayType.addChild(T.ArrayDateType);
-
-/*
-// Arrays with innertypes that match on their subclasses
-// FIXME: Need to change __chooseMatchingType() to prioritize exact matches over theTypeCondition.test(element) === true and subclasses over their parents
-T.ArrayNullType = new T.Type("Array[Null]", Array, [new T.TypeCondition(T.NullType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayNullType);
-T.ArrayUnitType = new T.Type("Array[Unit]", Array, [new T.TypeCondition(T.UnitType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayUnitType);
-T.ArrayObjectType = new T.Type("Array[Object]", Array, [new T.TypeCondition(T.ObjectType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayObjectType);
-T.ArrayTypeType = new T.Type("Array[Type]", Array, [new T.TypeCondition(T.TypeType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayTypeType);
-T.ArrayTypeConditionType = new T.Type("Array[TypeCondition]", Array, [new T.TypeCondition(T.TypeConditionType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayTypeConditionType);
-T.ArrayImplicitType = new T.Type("Array[Implicit]", Array, [new T.TypeCondition(T.ImplicitType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayImplicitType);
-T.ArrayBooleanType = new T.Type("Array[Boolean]", Array, [new T.TypeCondition(T.BooleanType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayBooleanType);
-T.ArrayNumberType = new T.Type("Array[Number]", Array, [new T.TypeCondition(T.NumberType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayNumberType);
-T.ArrayStringType = new T.Type("Array[String]", Array, [new T.TypeCondition(T.StringType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayStringType);
-T.ArrayFunctionType = new T.Type("Array[Function]", Array, [new T.TypeCondition(T.FunctionType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayFunctionType);
-T.ArrayDateType = new T.Type("Array[Date]", Array, [new T.TypeCondition(T.DateType, function(object) { return T.isSubtype(object, this.type); })]);
-T.ArrayType.addChild(T.ArrayDateType);
-*/
