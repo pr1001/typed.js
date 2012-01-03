@@ -19,7 +19,7 @@ T = {
     
     // short-circuit everything when dealing with arrays because I don't understand my earlier code
     if (input instanceof Array) {
-      var innerType = input.reduce(function (a, b, index) {
+      var innerType = (input.length == 0) ? T.ArrayType : input.reduce(function (a, b, index) {
         // if we're on the first call, replace a with its Type
         return (index == 1 ? T.typeOf(a) : a).getCommonSupertypeWith(T.typeOf(b));
       });
