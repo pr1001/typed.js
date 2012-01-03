@@ -17,6 +17,36 @@ T = {
       throw new Error("An Array of TypeConditions is required.");
     }
     
+    // short-circuit everything when dealing with arrays because I don't understand my earlier code
+    if (input instanceof Array) {
+      var innerType = input.reduce(function (a, b, index) {
+        // if we're on the first call, replace a with its Type
+        return (index == 1 ? T.typeOf(a) : a).getCommonSupertypeWith(T.typeOf(b));
+      });
+      
+      // descend a type tree looking for an exact match between the type and the tree node's first innertype
+      function descendInnertypes(type, typeTree) {
+        // if our tree node has one inner type and it's the same
+        if (typeTree.innertypes.length > 0 && type == typeTree.innertypes[0].type) {
+          return typeTree;
+        }
+        // keep going down
+        else if (typeTree.children.length > 0) {
+          // find which of the children is the best watch
+          return typeTree.children.reduce(function(a, b, index) {
+            // if we're on our first call descend on a, otherwise it's already been descended.
+            return (index == 1 ? descendInnertypes(type, a) : a) || descendInnertypes(type, b);
+          });
+        }
+        else {
+          // this typeTree is a dead-end
+          return null;
+        }
+      }
+      // descend type tree from T.ArrayType looking for more specific match
+      return descendInnertypes(innerType, T.ArrayType) || T.ArrayType;
+    }
+    
     // print("types before sort: " + types);
     
     types.sort(function (a, b) {
@@ -520,7 +550,7 @@ if (typeof console !== "undefined" && typeof console.log !== "undefined") {
   // FIXME: fails silently
   T.__logger = function() {};
 }
-    
+
 T.Type.prototype.toString = function toString() {
   return "type " + this.name;
 }
