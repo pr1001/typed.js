@@ -24,6 +24,13 @@ T = {
         return (index == 1 ? T.typeOf(a) : a).getCommonSupertypeWith(T.typeOf(b));
       });
       
+      // T.typeOf([["a", "b"], ["aa", "bb"]])
+      // innerType: type Array[String] a,b,aa,bb type Array[Any]
+      // print("innerType:", innerType, input, types);
+      
+      // we have Array[String], we want Array[Array[String]]
+      // or, barring that, Array[Array[Any]]
+      
       // descend a type tree looking for an exact match between the type and the tree node's first innertype
       function descendInnertypes(type, typeTree) {
         // if our tree node has one inner type and it's the same
@@ -32,11 +39,68 @@ T = {
         }
         // keep going down
         else if (typeTree.children.length > 0) {
-          // find which of the children is the best watch
-          return typeTree.children.reduce(function(a, b, index) {
+          // find which of the children is the best match
+          var reduced = typeTree.children.reduce(function(a, b, index) {
             // if we're on our first call descend on a, otherwise it's already been descended.
+            // FIXME? Are we improperly choosing Array[Array[Any]] here instead of Array[Array[String]] when we have [["a", "b"]]?
             return (index == 1 ? descendInnertypes(type, a) : a) || descendInnertypes(type, b);
           });
+          
+          // if we haven't found a child but it looks like we have a new, nested type
+          // then we're going to go ahead and create new types to fill out the tree to the required depth
+          // print("reduced:", reduced, "type:", type, "typeTree", typeTree);
+          
+          // FIXME: right now this is messed up:
+          /*
+          js> T.typeOf([[new Date, new Date]])
+          type Array[Any]
+          js> T.typeOf([[false, true]])
+          type Array[Any]
+          js> T.ArrayArrayObjectType.children
+          js: uncaught JavaScript runtime exception: TypeError: Cannot read property "children" from undefined
+          
+          js> T.typeOf([["a", "b"], ["aa", "bb"]])
+          in if
+          type Array[Array[Object]]
+          js> T.ArrayArrayObjectType.children
+          type Array[Array[String]]
+          js> T.ArrayArrayStringType.getTypeChain()
+          type Array[Array[String]],type Array[Array[Object]],type Array[Array[Any]],type Array[Object],type Array[Any],type Object,type Unit
+          */
+          if (T.is(reduced, T.NullType) && T.isType(type) && type.isSubtypeOf(typeTree)) {
+            print("in if")
+            // current depth of the nested array
+            // FIXME: got by looking at the name, a total hack
+            var depth = Math.max.apply(Math, type.getTypeChain().map(function (i) { return i.name.match(/Array/g) }).filter(function (i) { return i !== null }).map(function (i) { return i.length }))
+            
+            if (T.is(type, T.UnitType)) {
+              var innerChain = [];
+            } else {
+              var innerChain = type.innertypes[0].type.getTypeChain().reverse()
+            }
+            
+            // the 'Array' in the name at the old depth
+            var oldArraysString = new Array(depth + 1).join("Array");
+            // the 'Array' in the name at the new depth
+            var newArraysString = new Array(depth + 2).join("Array");
+            // doing Object, not the Any and not Any because Array is a subtype of Object
+            var previous = T[oldArraysString + "ObjectType"];
+            // using reduce() for a functional way to iterate over the parent chain and progressively add the new nested array types 
+            return innerChain.reduce(function (a, b) {
+              var oldName = b.is(T.UnitType) ? oldArraysString : oldArraysString + b.name;
+              // put the inner type's name into the new name
+              var newName = b.is(T.UnitType) ? newArraysString : newArraysString + b.name;
+              var oldType = T[oldName + "Type"];
+              var newDisplayName = "Array[" + oldType.name + "]";
+              var newType = new T.Type(newDisplayName, Array, [oldType]);
+              T[newName + "Type"] = newType;
+              // attach b to previous element a
+              a.addChild(newType);
+              return newType;
+            }, previous);
+          }
+          // else just return our reduced type
+          return reduced;
         }
         else {
           // this typeTree is a dead-end
