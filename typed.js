@@ -708,6 +708,33 @@ T.ArrayObjectType.addChild(T.ArrayFunctionType);
 T.ArrayDateType = new T.Type("Array[Date]", Array, [T.DateType]);
 T.ArrayObjectType.addChild(T.ArrayDateType);
 
+// get the common supertype of two Types (which could be one of the given types)
+// rather than do assertions on our input, just let typedFunction() do it
+T.getCommonSupertype = T.typedFunction(
+  {a: T.TypeType, age: T.TypeType},
+  T.TypeType,
+  function(a, b) {
+    // use a's Type if it's a supertype of b's Type
+    if (a.isSupertypeOf(b)) {
+      return a;
+    }
+    // use b's Type if it's a supertype of c's Type
+    else if (b.isSupertypeOf(a)) {
+      return b;
+    }
+    // need to descend the type chains
+    else {
+      var a1 = a.parents[0];
+      var b1 = b.parents[0];
+      return T.getCommonSupertype(a1, b1);
+    }
+  }
+);
+
+T.Type.prototype.getCommonSupertypeWith = function getCommonSupertypeWith(b) {
+  return T.getCommonSupertype(this, b);
+}
+
 /*
 // Arrays with innertypes that match on their subclasses
 // FIXME: Need to change __chooseMatchingType() to prioritize exact matches over theTypeCondition.test(element) === true and subclasses over their parents
